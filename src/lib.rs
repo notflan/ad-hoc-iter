@@ -22,23 +22,23 @@
 /// The iterators returned from this method have these associated functions:
 ///
 /// ## The length of the whole iterator
-/// ```
+/// ```ignore
 /// pub const fn len(&self) -> usize
 /// ```
 ///
 /// ## The rest of the iterator that has not been consumed.
-/// ```
+/// ```ignore
 /// pub fn rest(&self) -> &[T]
 /// ```
 ///
 /// ##  The whole array.
 ///  All values that have not been consumed are initialised, values that have been consumed are uninitialised.
-/// ```
+/// ```ignore
 /// pub fn array(&self) -> &[MaybeUninit<T>; Self::LEN]
 /// ```
 ///
 /// ## How many items have since been consumed.
-/// ```
+/// ```ignore
 /// pub const fn consumed(&self) -> usize
 /// ```
 #[macro_export] macro_rules! iter {
