@@ -134,7 +134,7 @@ where U: IntoIterator<Item = T>
 	    false
 	}
     }
-    /// Map the single value with this function
+    /// Map the many value with this function
     #[inline] pub fn map_many<F, A>(self, fun: F) -> MaybeMany<T, A>
     where F: FnOnce(U) -> A,
 	  A: IntoIterator<Item=T>
@@ -143,6 +143,16 @@ where U: IntoIterator<Item = T>
 	    Self::One(t) => MaybeMany::One(t),
 	    Self::Many(m) => MaybeMany::Many(fun(m)),
 	    Self::None => MaybeMany::None,
+	}
+    }
+    
+    /// Mutate the many value with this function.
+    #[inline] pub fn on_many<F, A>(&mut self, fun: F) -> Option<A>
+    where F: FnOnce(&mut U) -> A,
+    {
+	match self {
+	    Self::Many(ref mut m) => Some(fun(m)),
+	    _ => None
 	}
     }
     
