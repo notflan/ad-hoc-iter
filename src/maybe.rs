@@ -7,20 +7,62 @@
 /// An iterator that can yield `0,1,2+` items
 #[derive(Debug, Clone)]
 pub enum MaybeMany<T,U>
+where U: IntoIterator<Item = T>
 {
     None,
     One(T),
     Many(U),
 }
 
-impl<T,U> MaybeMany<T,U>   
+impl<T> MaybeMany<T, std::iter::Empty<T>>
 {
+    /// A single variant
+    #[inline] pub fn one(value: T) -> Self
+    {
+	Self::One(value)
+    }
+}
+
+impl MaybeMany<std::convert::Infallible, std::iter::Empty<std::convert::Infallible>>
+{
+    /// An empty variant that yields no values ever.
+    #[inline] pub fn none() -> Self
+    {
+	Self::None
+    }
+}
+
+impl<T,U> MaybeMany<T,U>
+where U: IntoIterator<Item = T>
+
+{
+    /// Consume into the `Many` variant.
+    pub fn into_many(self) -> MaybeMany<T, Self>
+    {
+	MaybeMany::Many(self)
+    }
+
+    /// Chain another iterator to this one
+    pub fn chain<I>(self, iter: I) -> MaybeMany<T, std::iter::Chain<<Self as IntoIterator>::IntoIter, I::IntoIter>>
+    where I: IntoIterator<Item=T>
+    {
+	MaybeMany::Many(self.into_iter().chain(iter.into_iter()))
+    }
+
+    /// Into a boxed `MaybeMany` type.
+    pub fn boxed(self) -> MaybeMany<T, Box<dyn Iterator<Item=T>+'static>>
+    where U: 'static,
+	  T: 'static
+    {
+	MaybeMany::Many(Box::new(self.into_iter()))
+    }
+    
     /// Try to guess the size.
     ///
     /// * `None` => `Some(0)`
     /// * `One(_)` => `Some(1)`
     /// * `Many(_) => `None`
-    #[inline] pub const fn size_hint(&self) -> Option<usize>
+    #[inline] pub fn size_hint(&self) -> Option<usize>
     {
 	match self {
 	    Self::None => Some(0),
@@ -29,7 +71,7 @@ impl<T,U> MaybeMany<T,U>
 	}
     }
     /// Is this an empty instance
-    #[inline] pub const fn is_none(&self) -> bool
+    #[inline] pub fn is_none(&self) -> bool
     {
 	if let Self::None = self {
 	    true
@@ -38,7 +80,7 @@ impl<T,U> MaybeMany<T,U>
 	}
     }
     /// Is this a single value instance?
-    #[inline] pub const fn is_single(&self) -> bool
+    #[inline] pub fn is_single(&self) -> bool
     {
 	if let Self::One(_) = self {
 	    true
@@ -47,7 +89,7 @@ impl<T,U> MaybeMany<T,U>
 	}
     }
     /// Is this a 2+ value instance?
-    #[inline] pub const fn is_many(&self) -> bool
+    #[inline] pub fn is_many(&self) -> bool
     {
 	if let Self::Many(_) = self {
 	    true
@@ -100,6 +142,7 @@ impl<T,U> MaybeMany<T,U>
 /// An iterator for `MaybeMany` instances.
 #[non_exhaustive] #[derive(Debug, Clone)]
 pub enum MaybeManyIter<T,U>
+where U: Iterator<Item=T>
 {
     None,
     One(std::iter::Once<T>),
@@ -143,5 +186,21 @@ impl<T, U: IntoIterator<Item=T>> IntoIterator for MaybeMany<T, U>
 	    Self::One(one) => MaybeManyIter::One(std::iter::once(one)),
 	    Self::Many(many) => MaybeManyIter::Many(many.into_iter().fuse())
 	}
+    }
+}
+
+#[cfg(test)]
+mod tests
+{
+    use super::*;
+    #[test]
+    fn into_many()
+    {
+	let mut mayb = MaybeMany::one("hello").boxed();
+	mayb = mayb.chain(vec!["world", "!"]).boxed();
+
+	let output: Vec<_> = mayb.into_iter().collect();
+
+	assert_eq!(&output[..], &["hello", "world", "!"]);
     }
 }
