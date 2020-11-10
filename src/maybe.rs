@@ -21,6 +21,30 @@ impl<T> MaybeMany<T, std::iter::Empty<T>>
     {
 	Self::One(value)
     }
+    
+    /// Map an infallibly `One` into the `Many` variant.
+    ///
+    /// # `None` variants are preserved.
+    pub fn map_single_into_many<F, V, W>(self, trans: F) -> MaybeMany<V, W>
+    where F: FnOnce(T) -> W,
+	  W: IntoIterator<Item=V>,
+    {
+	match self {
+	    Self::One(one) => MaybeMany::Many(trans(one)),
+	    _ => MaybeMany::None,
+	}
+    }
+
+    /// Convert `Many(Empty)` into `None` of any type.
+    pub fn map_none<V>(self) -> MaybeMany<T, V>
+    where V: IntoIterator<Item=T>
+    {
+	match self
+	{
+	    Self::None | Self::Many(_) => MaybeMany::None,
+	    Self::One(o) => MaybeMany::One(o),
+	}
+    }
 }
 
 impl MaybeMany<std::convert::Infallible, std::iter::Empty<std::convert::Infallible>>
@@ -31,7 +55,6 @@ impl MaybeMany<std::convert::Infallible, std::iter::Empty<std::convert::Infallib
 	Self::None
     }
 }
-
 impl<T,U> MaybeMany<T,U>
 where U: IntoIterator<Item = T>
 
@@ -40,6 +63,20 @@ where U: IntoIterator<Item = T>
     pub fn into_many(self) -> MaybeMany<T, Self>
     {
 	MaybeMany::Many(self)
+    }
+
+    /// Map into the `Many` variant.
+    ///
+    /// # `None` variants are preserved.
+    pub fn map_into_many<F, V, W>(self, trans: F) -> MaybeMany<V, W>
+    where F: FnOnce(T) -> W,
+	  W: IntoIterator<Item=V> + From<U>,
+    {
+	match self {
+	    Self::None => MaybeMany::None,
+	    Self::One(one) => MaybeMany::Many(trans(one)),
+	    Self::Many(many) => MaybeMany::Many(W::from(many)),
+	}
     }
 
     /// Chain another iterator to this one
@@ -196,11 +233,11 @@ mod tests
     #[test]
     fn into_many()
     {
-	let mut mayb = MaybeMany::one("hello").boxed();
-	mayb = mayb.chain(vec!["world", "!"]).boxed();
+	let mayb = MaybeMany::one("hello");
+	let mayb = mayb.map_single_into_many(|x| vec![x, " "]).chain(vec!["world", "!"]);
 
 	let output: Vec<_> = mayb.into_iter().collect();
 
-	assert_eq!(&output[..], &["hello", "world", "!"]);
+	assert_eq!(&output[..], &["hello", " ", "world", "!"]);
     }
 }
