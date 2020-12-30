@@ -69,7 +69,7 @@
 	}
     };
     
-    ($($value:expr),*) => {
+    ($($value:expr),* $(,)?) => {
 	{
 	    use ::std::mem::MaybeUninit;
 	    use ::std::ops::Drop;
